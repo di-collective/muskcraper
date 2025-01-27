@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { and, desc, eq } from "drizzle-orm";
 import fnv1a from "fnv1a";
 import puppeteer, { Browser } from "puppeteer";
@@ -62,19 +63,33 @@ const scrape = async (
       await mydb.insert(trackChanges).values(changes);
       cache.set(tracked.username, changes);
 
+      const latestPost = profile.posts
+        ? profile.posts.reduce((latest, current) => {
+            if (!latest) return current;
+
+            return current.time > latest.time ? current : latest;
+          })
+        : { link: "-", tweet: "-" };
+
       await bot.telegram.sendMessage(
-        "-4634153424",
+        process.env.BOT_CHAT_ID,
         changes.revision === 1
-          ? `Start tracking: @${tracked.username}
-          rev: ${changes.revision},
-          photo: ${profile.photo},
-          username: ${profile.username},
-          description: ${profile.description ? profile.description.join("") : null}`.replace(/\s+/g, ' ').trim()
-          : `@${tracked.username} changed something:
-          rev: ${changes.revision},
-          photo: ${profile.photo},
-          username: ${profile.username},
-          description: ${profile.description ? profile.description.join("") : null}`.replace(/\s+/g, ' ').trim(),
+          ? `Start tracking: @${tracked.username},\n` +
+              `rev: ${changes.revision},\n` +
+              `photo: ${profile.photo},\n` +
+              `username: ${profile.username},\n` +
+              `description: ${profile.description ? profile.description.join(" ") : null},\n` +
+              `-----\n` +
+              `latestTweet: ${latestPost.link}\n` +
+              `${latestPost.tweet}`
+          : `@${tracked.username} changed something:\n` +
+              `rev: ${changes.revision},\n` +
+              `photo: ${profile.photo},\n` +
+              `username: ${profile.username},\n` +
+              `description: ${profile.description ? profile.description.join(" ") : null},\n` +
+              `-----\n` +
+              `latestTweet: ${latestPost.link}\n` +
+              `${latestPost.tweet}`,
         { parse_mode: "HTML" },
       );
     }
@@ -84,20 +99,23 @@ const scrape = async (
 (async function main() {
   const cache = new Map<string, any>();
   let browser = await puppeteer.launch();
-
+  let failure = 0;
   while (loop) {
     try {
+      failure = 0;
       const trackedProfilesOnX = await findTrackedProfilesOnX();
       await scrape(browser, cache, trackedProfilesOnX);
       await sleep(randomize(10 * 1000, 30 * 1000));
     } catch (e) {
-      if (e.message === "Protocol error: Connection closed.") {
-        logger.warn("restarting browser")
-        browser = await puppeteer.launch()
-        continue
+      failure++;
+
+      if (failure >= 10) {
+        logger.error(`Failed to scrape: ${e.message}`);
+        process.exit(1);
       }
 
       logger.error(e);
+      await sleep(randomize(15 * 1000, 30 * 1000));
     }
   }
 })();
