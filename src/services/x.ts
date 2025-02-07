@@ -1,8 +1,9 @@
 import { Browser, GoToOptions } from "puppeteer";
 
 interface XPost {
+  pinned: boolean;
   link: string;
-  time: Date;
+  time: string;
   tweet?: string;
   photo?: string;
 }
@@ -42,17 +43,20 @@ const getProfile = async (
       const description = !descriptionBoundary
         ? null
         : Array.from(descriptionBoundary.children).map((el) => {
-            if (el.nodeName === "SPAN" || el.nodeName === "DIV") {
-              return (el as HTMLElement).innerText;
-            } else if (el.nodeName === "IMG") {
-              return (el as HTMLImageElement).src;
-            }
-          });
+          if (el.nodeName === "SPAN" || el.nodeName === "DIV") {
+            return (el as HTMLElement).innerText;
+          } else if (el.nodeName === "IMG") {
+            return (el as HTMLImageElement).src;
+          }
+        });
 
       const postListBoundary = document.querySelectorAll(
         "[data-testid='tweet']",
       );
       const posts = Array.from(postListBoundary)?.map((postBoundary) => {
+        const pinned = !!postBoundary.querySelector(
+          "[data-testid='socialContext']",
+        );
         const tweet = postBoundary.querySelector(
           "[data-testid='tweetText']",
         ) as HTMLElement;
@@ -61,9 +65,10 @@ const getProfile = async (
         ) as HTMLTimeElement;
         const link = time.parentElement as HTMLAnchorElement;
         return {
+          pinned,
           link: link?.href,
           tweet: tweet?.textContent,
-          time: new Date(time.attributes["datetime"].value),
+          time: time.dateTime,
         };
       });
 

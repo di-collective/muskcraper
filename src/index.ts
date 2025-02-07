@@ -65,31 +65,33 @@ const scrape = async (
 
       const latestPost = profile.posts
         ? profile.posts.reduce((latest, current) => {
-            if (!latest) return current;
+          if (!latest) return current;
 
-            return current.time > latest.time ? current : latest;
-          })
+          return new Date(current.time) > new Date(latest.time)
+            ? current
+            : latest;
+        })
         : { link: "-", tweet: "-" };
 
       await bot.telegram.sendMessage(
         process.env.BOT_CHAT_ID,
         changes.revision === 1
           ? `Start tracking: @${tracked.username},\n` +
-              `rev: ${changes.revision},\n` +
-              `photo: ${profile.photo},\n` +
-              `username: ${profile.username},\n` +
-              `description: ${profile.description ? profile.description.join(" ") : null},\n` +
-              `-----\n` +
-              `latestTweet: ${latestPost.link}\n` +
-              `${latestPost.tweet}`
+          `rev: ${changes.revision},\n` +
+          `photo: ${profile.photo},\n` +
+          `username: ${profile.username},\n` +
+          `description: ${profile.description ? profile.description.join(" ") : null},\n` +
+          `-----\n` +
+          `latestTweet: ${latestPost.link}\n` +
+          `${latestPost.tweet}`
           : `@${tracked.username} changed something:\n` +
-              `rev: ${changes.revision},\n` +
-              `photo: ${profile.photo},\n` +
-              `username: ${profile.username},\n` +
-              `description: ${profile.description ? profile.description.join(" ") : null},\n` +
-              `-----\n` +
-              `latestTweet: ${latestPost.link}\n` +
-              `${latestPost.tweet}`,
+          `rev: ${changes.revision},\n` +
+          `photo: ${profile.photo},\n` +
+          `username: ${profile.username},\n` +
+          `description: ${profile.description ? profile.description.join(" ") : null},\n` +
+          `-----\n` +
+          `latestTweet: ${latestPost.link}\n` +
+          `${latestPost.tweet}`,
         { parse_mode: "HTML" },
       );
     }
